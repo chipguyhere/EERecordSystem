@@ -2,7 +2,8 @@
 Trivial EEPROM-based tinyfilesystem for Arduino
 
 ## Highlights:
-  * Minimalist efficiency.  File system holds records, let's not call them files.
+  * Minimalist efficiency.  It's a single header file containing only template code.  
+  * File system holds records, let's not call them files.
   * Designed for storing configuration choices.  It's friendlier than having fixed locations for things.  Having configuration items tied to alphanumeric keys makes it trivial to create a configuration editor (e.g. serial) to edit the values in EEPROM.
   * Minimalist in EEPROM consumption.  Five EEPROM byte overhead for entire class, plus two bytes per record (one byte per key, one byte per record for length, plus your data)
   * Longer keys and record lengths supported.  Just use something other than ```byte``` as needed (this is a C++ template class)
@@ -11,9 +12,9 @@ Trivial EEPROM-based tinyfilesystem for Arduino
   * There's no deleting or resizing records in this implementation, but you can add and overwrite them.
   
 ## List feature:
-  * Designed for maintaining an access control database of valid 32-bit ID numbers.  (The size of 32-bits isn't currently templated).
+  * Designed for also maintaining a list.  The prototypical use case is as an access control database of valid 32-bit user ID numbers that occasionally get added or removed.  (The size of 32-bits is fixed and isn't templated).
   * You can add/remove ID numbers.  You can query if ID numbers are in the list.
-  * ID 0xFFFFFFFF is reserved for free space.  Space from deleted IDs remains reserved for new IDs within the same list.
+  * ID 0xFFFFFFFF is reserved for free space.  Removing ID's sets them to this value.  Space from deleted IDs remains reserved for new IDs within the same list.
   * There can be more than one ID list.  Each whole list is accessed by a single key.
   
 # Usage
