@@ -4,12 +4,12 @@ Trivial EEPROM-based tinyfilesystem for Arduino
 ## Highlights:
   * Minimalist efficiency.  It's a single header file containing only template code.  
   * File system holds records, let's not call them files.
-  * Designed for storing configuration choices.  It's friendlier than having fixed locations for things.  Having configuration items tied to alphanumeric keys makes it trivial to create a configuration editor (e.g. serial) to edit the values in EEPROM.
-  * Minimalist in EEPROM consumption.  Five EEPROM byte overhead for entire class, plus two bytes per record (one byte per key, one byte per record for length, plus your data)
-  * Longer keys and record lengths supported.  Just use something other than ```byte``` as needed (this is a C++ template class)
+  * Designed for storing configuration choices.  It's friendlier than having fixed locations for things.  Makes it easy to provide a minimal configuration editor in-sketch (e.g. via serial).
+  * Minimalist in EEPROM consumption.  Five EEPROM byte overhead for entire filesystem, plus two bytes per record (one byte per key, one byte for length, plus your data)
+  * Longer keys and record lengths supported.  Just use something other than ```byte``` in the constructor (this is a C++ template class)
   * Each record has an character or integer "key"
   ** Example: using uint16_t as a key suitable for a multicharacter character constant (e.g. 'ab' == 0x6162)
-  * There's no deleting or resizing records in this implementation, but you can add and overwrite them.
+  * There's no deleting or resizing records in this implementation, but you can add new records and overwrite records where size is the same.
   
 ## List feature:
   * Designed for also maintaining a list.  The prototypical use case is as an access control database of valid 32-bit user ID numbers that occasionally get added or removed.  (The size of 32-bits is fixed and isn't templated).
