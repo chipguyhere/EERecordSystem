@@ -40,12 +40,20 @@ public:
     
     // Starts up, and writes a header to the EEPROM if a header is not found.
     void begin(); // use whole EEPROM
-		void begin(int _starting_address, int _ending_address); // use portion of EEPROM    
+    void begin(int _starting_address, int _ending_address); // use portion of EEPROM    
+    
+    // Read a record from EEPROM by its key, returning the default if it's not found.
+    template <typename T_datatype> T_datatype getRecordData(T_key key, T_datatype defaultValue);
+    template <typename T_datatype> T_datatype updateRecordData(T_key, T_datatype data);
     
     // Add or update a record.  Returns true if successful
     bool updateRecord(T_key key, byte data);
-    bool updateRecord(T_key key, void *recorddata, T_datasize datasize);	   
-		int getRecordAddress(T_key key, T_datasize datasize, uint16_t startWhere=0, T_datasize *datasizeOut=NULL);
+    bool updateRecord(T_key key, void *recorddata, T_datasize datasize);
+    
+    // Get EEPROM address of a record, suitable for using EEPROM.get for the data.
+    // Will only select a record with matching key and size when datasize is nonzero
+    // If datasize==0, match on key only, any size matches, datasizeOut will be returned.   
+    int getRecordDataAddress(T_key key, T_datasize datasize, uint16_t startWhere=0, T_datasize *datasizeOut=NULL);
 
     // List operations
     bool queryList(uint32_t id, T_key listkey, uint32_t comparison_mask=0xFFFFFFFF);
@@ -54,15 +62,18 @@ public:
     void enumerateList(T_key listkey, void (*enumcallback)(void*,uint32_t), void *objptr);
     
 private:
-	bool idop(char op, uint32_t id, T_key listkey, uint32_t comparison_mask, void (*enumcallback)(void*,uint32_t)=NULL);
-	bool began=false;
-	bool addnewrecord(T_key key, void *recorddata, T_datasize datasize);
-	
-	uint16_t starting_address;
-	uint16_t ending_address;
+  bool idop(char op, uint32_t id, T_key listkey, uint32_t comparison_mask, void (*enumcallback)(void*,uint32_t)=NULL);
+  bool began=false;
+  bool addnewrecord(T_key key, void *recorddata, T_datasize datasize);
+  
+  uint16_t starting_address;
+  uint16_t ending_address;
 
 
 };
+
+
+
 
 
 #define EEPROMREAD(x) EEPROM.read(x)
@@ -74,7 +85,7 @@ template <typename T_key, typename T_datasize> EERecordSystem<T_key,T_datasize>:
 // begin()
 // Begins using the record system.  Writes formatting information to the EEPROM if not already found.
 template <typename T_key, typename T_datasize> void EERecordSystem<T_key,T_datasize>::begin() {
-	begin(0, EEPROM.length()-1);
+  begin(0, EEPROM.length()-1);
 }
 
 // begin()
@@ -82,12 +93,12 @@ template <typename T_key, typename T_datasize> void EERecordSystem<T_key,T_datas
 template <typename T_key, typename T_datasize> void EERecordSystem<T_key,T_datasize>::begin(int _starting_address, int _ending_address) {
   began=true;
   int s = _starting_address+1;
-	starting_address=_starting_address+4;
+  starting_address=_starting_address+4;
   ending_address=_ending_address;
   if (EEPROMREAD(s++)=='C') {
-  	if (EEPROMREAD(s++)=='A') {
-  		if (EEPROMREAD(s)=='S') return;
-  	}
+    if (EEPROMREAD(s++)=='A') {
+      if (EEPROMREAD(s)=='S') return;
+    }
   }  
   s -= 2;
   EEPROMUPDATE(s++, 'C');
@@ -97,6 +108,22 @@ template <typename T_key, typename T_datasize> void EERecordSystem<T_key,T_datas
   EEPROMUPDATE(s, 0);
 }
 
+
+template <typename T_key, typename T_datasize>  
+template <typename T_datatype>
+T_datatype EERecordSystem<T_key,T_datasize>::getRecordData(T_key key, T_datatype defaultValue) {
+  int addr = getRecordDataAddress(key, sizeof(T_datatype));
+  if (addr==-1) return defaultValue;
+  T_datatype rv;
+  EEPROM.get(addr, rv);
+  return rv;
+}
+
+template <typename T_key, typename T_datasize>  
+template <typename T_datatype>
+T_datatype EERecordSystem<T_key,T_datasize>::updateRecordData(T_key key, T_datatype data) {
+  return updateRecord(key, &data, sizeof(data));
+}
 
 
 // updateRecord
@@ -113,7 +140,7 @@ template <typename T_key, typename T_datasize> bool EERecordSystem<T_key,T_datas
     if (datasize==0) return false;
     if (datasize > (sizeof(datasize)==2 ? 65533 : 254) - sizeof(key)) return false;
 
-    int address = getRecordAddress(key, datasize);
+    int address = getRecordDataAddress(key, datasize);
     // address points to data portion, if valid.
 
     // write record if it doesn't already exist
@@ -129,52 +156,52 @@ template <typename T_key, typename T_datasize> bool EERecordSystem<T_key,T_datas
 
 
 template<typename T_key> static T_key eeprom_read_fkey(int where) {
-	T_key fkey;
-	if (sizeof(fkey)>2) {
-		for (int b=0; b<sizeof(fkey); b++) ((byte*)&fkey)[0] = EEPROMREAD(where++);
-	} else {
-		// sizeof fkey is 1 or 2, avoid compiling an unnecessary loop
-		fkey = EEPROMREAD(where);	
-		if (sizeof(fkey)==2) ((byte*)&fkey)[1] = EEPROMREAD(where+1);
-	}
-	return fkey;
+  T_key fkey;
+  if (sizeof(fkey)>2) {
+    for (int b=0; b<sizeof(fkey); b++) ((byte*)&fkey)[0] = EEPROMREAD(where++);
+  } else {
+    // sizeof fkey is 1 or 2, avoid compiling an unnecessary loop
+    fkey = EEPROMREAD(where); 
+    if (sizeof(fkey)==2) ((byte*)&fkey)[1] = EEPROMREAD(where+1);
+  }
+  return fkey;
 }
 
-// getRecordAddress
+// getRecordDataAddress
 // Gets the starting EEPROM address of the data portion of the record that matches on key and length (datasize).
 // This can be used for external manipulation of the data itself, or use within a counter.
 // If datasize is provided as 0, then match is on key only; record datasize is returned via the datasize parameter.
 // Parameter startWhere can be used to find the next match
-template <typename T_key, typename T_datasize> int EERecordSystem<T_key,T_datasize>::getRecordAddress(T_key key, T_datasize datasize, uint16_t startWhere, T_datasize *datasizeOut) {
+template <typename T_key, typename T_datasize> int EERecordSystem<T_key,T_datasize>::getRecordDataAddress(T_key key, T_datasize datasize, uint16_t startWhere, T_datasize *datasizeOut) {
   if (began==false) return -1;
     
-	Serial.println("GRA");
-  uint16_t EEaddress = starting_address;					// points at a length byte, or 0 if no more
+  Serial.println("GRA");
+  uint16_t EEaddress = starting_address;          // points at a length byte, or 0 if no more
   while (EEaddress < (ending_address - sizeof(key))) {
-		T_datasize recordlength = EEPROM.read(EEaddress);
-		if (sizeof(recordlength)==2) ((byte*)&recordlength)[1] = EEPROM.read(EEaddress+1);
-		if (recordlength==0) break;
+    T_datasize recordlength = EEPROM.read(EEaddress);
+    if (sizeof(recordlength)==2) ((byte*)&recordlength)[1] = EEPROM.read(EEaddress+1);
+    if (recordlength==0) break;
   
     if ((EEaddress+sizeof(recordlength)+sizeof(key)) > startWhere) {
-			T_key fkey = eeprom_read_fkey<T_key>(EEaddress+sizeof(recordlength));
-			int currentrecordaddress = EEaddress + sizeof(recordlength) + sizeof(fkey);
-			int currentrecordlength = recordlength - sizeof(recordlength) - sizeof(key);
-			Serial.print(key);
-			Serial.print("==");
-			Serial.print(fkey);
-			Serial.println((key==fkey) ? "=true" : "=false");
-    	if (key==fkey) { 
-	        if (datasize==0 && datasizeOut != NULL) {
-    	      *datasizeOut = currentrecordlength;
-        	  return currentrecordaddress;
+      T_key fkey = eeprom_read_fkey<T_key>(EEaddress+sizeof(recordlength));
+      int currentrecordaddress = EEaddress + sizeof(recordlength) + sizeof(fkey);
+      int currentrecordlength = recordlength - sizeof(recordlength) - sizeof(key);
+      Serial.print(key);
+      Serial.print("==");
+      Serial.print(fkey);
+      Serial.println((key==fkey) ? "=true" : "=false");
+      if (key==fkey) { 
+          if (datasize==0 && datasizeOut != NULL) {
+            *datasizeOut = currentrecordlength;
+            return currentrecordaddress;
         } else if (datasize==currentrecordlength) {
             return currentrecordaddress;
         }
-    	}
-  	}
-    EEaddress += recordlength;		// next record
+      }
+    }
+    EEaddress += recordlength;    // next record
 
-  }	
+  } 
   return -1;
 }
 
@@ -189,8 +216,8 @@ template <typename T_key, typename T_datasize> bool EERecordSystem<T_key,T_datas
   
   uint16_t EEaddress = starting_address;
   while (EEaddress < ending_address) {
-		T_datasize recordlength = EEPROM.read(EEaddress);
-		if (sizeof(recordlength)==2) ((byte*)&recordlength)[1] = EEPROM.read(EEaddress+1);
+    T_datasize recordlength = EEPROM.read(EEaddress);
+    if (sizeof(recordlength)==2) ((byte*)&recordlength)[1] = EEPROM.read(EEaddress+1);
     if (recordlength == 0) break;
     if (recordlength + EEaddress > ending_address) return false;
     EEaddress = EEaddress + recordlength;
@@ -254,11 +281,11 @@ template <typename T_key, typename T_datasize> bool EERecordSystem<T_key,T_datas
   bool delete_success=false;
   
   while (EEaddress <= ending_address) {
-		T_datasize recordlength = EEPROM.read(EEaddress);
-		if (sizeof(recordlength)==2) ((byte*)&recordlength)[1] = EEPROM.read(EEaddress+1);
+    T_datasize recordlength = EEPROM.read(EEaddress);
+    if (sizeof(recordlength)==2) ((byte*)&recordlength)[1] = EEPROM.read(EEaddress+1);
     if (recordlength == 0) break;
     // EEaddress points to record length, after this there is Key, and then Record Data.
-		T_key fkey = eeprom_read_fkey<T_key>(EEaddress+sizeof(recordlength));
+    T_key fkey = eeprom_read_fkey<T_key>(EEaddress+sizeof(recordlength));
     if (listkey==fkey) {
       T_datasize datalength = recordlength - sizeof(recordlength) - sizeof(fkey);
       uint16_t dataaddress = EEaddress + sizeof(fkey) + sizeof(recordlength);
