@@ -175,7 +175,6 @@ template<typename T_key> static T_key eeprom_read_fkey(int where) {
 template <typename T_key, typename T_datasize> int EERecordSystem<T_key,T_datasize>::getRecordDataAddress(T_key key, T_datasize datasize, uint16_t startWhere, T_datasize *datasizeOut) {
   if (began==false) return -1;
     
-  Serial.println("GRA");
   uint16_t EEaddress = starting_address;          // points at a length byte, or 0 if no more
   while (EEaddress < (ending_address - sizeof(key))) {
     T_datasize recordlength = EEPROM.read(EEaddress);
@@ -186,10 +185,6 @@ template <typename T_key, typename T_datasize> int EERecordSystem<T_key,T_datasi
       T_key fkey = eeprom_read_fkey<T_key>(EEaddress+sizeof(recordlength));
       int currentrecordaddress = EEaddress + sizeof(recordlength) + sizeof(fkey);
       int currentrecordlength = recordlength - sizeof(recordlength) - sizeof(key);
-      Serial.print(key);
-      Serial.print("==");
-      Serial.print(fkey);
-      Serial.println((key==fkey) ? "=true" : "=false");
       if (key==fkey) { 
           if (datasize==0 && datasizeOut != NULL) {
             *datasizeOut = currentrecordlength;
