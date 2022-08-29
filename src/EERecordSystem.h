@@ -100,7 +100,7 @@ template <typename T_key, typename T_datasize> void EERecordSystem<T_key,T_datas
       if (EEPROMREAD(s)=='S') return;
     }
   }  
-  s -= 2;
+  s=_starting_address+1;
   EEPROMUPDATE(s++, 'C');
   EEPROMUPDATE(s++, 'A');
   EEPROMUPDATE(s++, 'S');
